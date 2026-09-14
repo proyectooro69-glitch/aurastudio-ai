@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "npx vite build"
   publish = ".vite-out/client"
 
 [build.environment]
