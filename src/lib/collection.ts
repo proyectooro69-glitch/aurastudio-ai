@@ -2,6 +2,7 @@ export interface SavedCreation {
   id: string
   type: 'image' | 'video'
   prompt: string
+  finalPrompt: string
   preset: string
   ratio: string
   thumbnail: string
@@ -86,4 +87,48 @@ export function savePreset(item: Omit<SavedPreset, 'id' | 'createdAt'>): SavedPr
 export function deletePreset(id: string) {
   const all = getPresets().filter((p) => p.id !== id)
   localStorage.setItem(PRESETS_KEY, JSON.stringify(all))
+}
+
+/**
+ * Construye el prompt final que se envía al motor de generación.
+ *
+ * Prioridad absoluta: el texto del usuario. La imagen de referencia (si existe)
+ * se usa EXCLUSIVAMENTE como inspiración visual de estilo, paleta de colores y
+ * composición general — nunca como fuente para clonar, copiar o calcar.
+ *
+ * Garantiza que cada generación produzca un diseño nuevo y premium, obedeciendo
+ * las instrucciones de texto del usuario sobre cualquier parecido a la imagen.
+ */
+export function buildGenerationPrompt(
+  userPrompt: string,
+  hasReferenceImage: boolean,
+  preset: string,
+): string {
+  const core = userPrompt.trim()
+
+  const styleMap: Record<string, string> = {
+    'Cinematográfico':
+      'iluminación cinematográfica dramática, profundidad de campo, tonos de película',
+    'Lujo Comercial':
+      'estética de publicidad premium, iluminación de estudio, acabados impecables',
+    Minimalista:
+      'composición limpia y espaciada, paleta reducida, tipografía clara, mucho aire negativo',
+    'Fotorrealista 8K':
+      'detalle hiperrealista 8K, texturas precisas, iluminación fotorrealista, calidad comercial',
+  }
+
+  const styleSuffix = styleMap[preset] ?? styleMap['Cinematográfico']!
+
+  if (hasReferenceImage) {
+    return [
+      core,
+      `, ${styleSuffix}.`,
+      ' IMPORTANTE: La imagen de referencia adjunta se usa únicamente como inspiración visual de estilo, paleta de colores y concepto general de diseño.',
+      ' NO clonar, copiar, ni calcar la imagen de referencia.',
+      ' El contenido, los elementos, los textos, la distribución y todos los detalles deben ser totalmente nuevos y obedecer estrictamente estas instrucciones de texto.',
+      ' Genera un diseño premium original y creativo que respete la intención del texto sobre cualquier parecido visual con la referencia.',
+    ].join('')
+  }
+
+  return `${core}, ${styleSuffix}, composición editorial, detalle comercial premium, profundidad atmosférica`
 }

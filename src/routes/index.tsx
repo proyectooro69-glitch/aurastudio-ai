@@ -28,6 +28,7 @@ import { CollectionGallery } from '@/components/CollectionGallery'
 import { ImageUploader } from '@/components/ImageUploader'
 import {
   PROMPT_TEMPLATES,
+  buildGenerationPrompt,
   deleteCreation as removeCreation,
   deletePreset as removePreset,
   getCreations,
@@ -85,24 +86,34 @@ function AuraStudio() {
   }, [])
 
   const optimizePrompt = () => {
-    setPrompt(
-      `${prompt.trim()}, iluminación de estudio cinematográfica, texturas hiperrealistas, composición editorial, detalle comercial premium, profundidad atmosférica`,
-    )
+    const hasRef = referenceImages.length > 0
+    const enhanced = hasRef
+      ? `${prompt.trim()}, iluminación de estudio cinematográfica, texturas hiperrealistas, composición editorial, detalle comercial premium, profundidad atmosférica. La imagen de referencia aporta solo paleta de colores y concepto de diseño; el contenido y los elementos deben ser totalmente nuevos`
+      : `${prompt.trim()}, iluminación de estudio cinematográfica, texturas hiperrealistas, composición editorial, detalle comercial premium, profundidad atmosférica`
+    setPrompt(enhanced)
     toast.success('Prompt optimizado', {
-      description: 'Añadimos iluminación, textura y dirección de arte.',
+      description: hasRef
+        ? 'Texto enriquecido · referencia limitada a paleta y concepto de diseño'
+        : 'Añadimos iluminación, textura y dirección de arte.',
     })
   }
 
   const generateImage = () => {
     setGenerating(true)
     setGenerated(false)
+    const hasRef = referenceImages.length > 0
+    const finalPrompt = buildGenerationPrompt(prompt, hasRef, preset)
     window.setTimeout(() => {
       setGenerating(false)
       setGenerated(true)
       const thumb = referenceImages[0] || imageUrl
-      saveCreation({ type: 'image', prompt, preset, ratio, thumbnail: thumb })
+      saveCreation({ type: 'image', prompt, finalPrompt, preset, ratio, thumbnail: thumb })
       setCreations(getCreations())
-      toast.success('Imagen lista para tu colección')
+      toast.success('Imagen lista para tu colección', {
+        description: hasRef
+          ? 'Texto como prioridad · referencia usada solo como inspiración de estilo'
+          : 'Generada a partir de tu prompt',
+      })
     }, 1400)
   }
 
@@ -419,9 +430,14 @@ function AuraStudio() {
                       <ImageUploader
                         images={referenceImages}
                         onChange={setReferenceImages}
-                        label="Imagen de referencia"
+                        label="Imagen de referencia (inspiración de estilo)"
                         max={1}
                       />
+                      {referenceImages.length > 0 && (
+                        <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] leading-4 text-muted-foreground">
+                          La imagen se usa <span className="font-medium text-primary">solo como inspiración</span> de paleta de colores, estilo y composición. El motor de generación obedecerá tu texto como prioridad absoluta y creará un diseño totalmente nuevo.
+                        </p>
+                      )}
 
                       <button
                         onClick={optimizePrompt}
@@ -719,7 +735,7 @@ function PreviewCard({
             <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
               <div>
                 <p className="text-xs font-medium text-foreground">
-                  {referenceImage ? 'Basado en tu referencia' : 'Golden hour / Brutalist retreat'}
+                  {referenceImage ? 'Inspirado en tu referencia · diseño original' : 'Golden hour / Brutalist retreat'}
                 </p>
                 <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-foreground/60">
                   AuraStudio render · {ratio}
